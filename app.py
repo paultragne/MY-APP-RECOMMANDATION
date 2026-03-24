@@ -240,9 +240,9 @@ if selected_user:
 
     # --- 3. ITEM-BASED ---
     if last_purchased_name:
-        contextual_header = f'Items similar to "{last_purchased_name[:30]}..."'
+        contextual_header = f'Because of your purchases "{last_purchased_name[:30]}..."'
     else:
-        contextual_header = "Recommended based on your purchases"
+        contextual_header = "Because of your purchases"
         
     st.subheader(contextual_header)
     

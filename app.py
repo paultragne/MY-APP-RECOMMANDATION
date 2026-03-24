@@ -97,8 +97,6 @@ def recommend_user_based(user_id, top_n=5, k=30):
 import random # Outil pour le mélange aléatoire
 
 # --- BANQUE GÉANTE DE 65+ IMAGES DE BEAUTÉ RÉELLES ET TESTÉES ---
-# Thème : Uniquement Beauté, Cosmétiques, Soins, Parfums.
-# Tous ces liens ont été vérifiés comme actifs et stables.
 banque_images_beaute = [
     "https://images.unsplash.com/photo-1612817288484-6f916006741a?w=400",
     "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400",
@@ -151,20 +149,7 @@ banque_images_beaute = [
     "https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?w=400",
     "https://images.unsplash.com/photo-1608541737042-87a12275d313?w=400",
     "https://images.unsplash.com/photo-1598454441315-1888b5b5c960?w=400",
-    "https://images.unsplash.com/photo-1596704017254-9b121068fb31?w=400",
-    "https://images.unsplash.com/photo-1620916566398-39f1143ab7be?w=400",
-    "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400",
-    "https://images.unsplash.com/photo-1606992523267-3404c7c88034?w=400",
-    "https://images.unsplash.com/photo-1591871788756-12a149c4ac44?w=400",
-    "https://images.unsplash.com/photo-1631730486784-029911d96b01?w=400",
-    "https://images.unsplash.com/photo-1612817288484-6f916006741a?w=400",
-    "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400",
-    "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=400",
-    "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400",
-    "https://images.unsplash.com/photo-1512495518311-6b72183c5e00?w=400",
-    "https://images.unsplash.com/photo-1614859324967-bdf411dfa467?w=400",
-    "https://images.unsplash.com/photo-1631729371254-42c2892f0e6e?w=400",
-    "https://images.unsplash.com/photo-1608541737042-87a12275d313?w=400"
+    "https://images.unsplash.com/photo-1596704017254-9b121068fb31?w=400"
 ]
 
 # Barre latérale pour choisir l'utilisateur
@@ -174,8 +159,7 @@ selected_user = st.sidebar.selectbox("Choisissez ou collez un UserId :", users_l
 
 if selected_user:
     
-    # On mélange la banque géante et on tire 15 images uniques
-    # Avec 65 images dispo, la diversité sera énorme à chaque clic.
+    # On tire 15 images aléatoires dans notre banque de beauté
     images_melangees = random.sample(banque_images_beaute, 15)
     
     # Historique des achats de l'utilisateur
@@ -186,10 +170,6 @@ if selected_user:
         
     st.divider()
 
-    # --- Configuration de l'affichage ---
-    # use_container_width=True pour remplir la colonne
-    # height=250 pour FORCER TOUTES LES IMAGES À LA MÊME HAUTEUR (alignement parfait)
-
     # --- LIGNE 1 : POPULARITÉ ---
     st.subheader("🔥 Top 5 des produits en vogue du moment (Popularité)")
     pop_recs = popularity_model.head(5).index.tolist()
@@ -198,8 +178,11 @@ if selected_user:
     for i, pid in enumerate(pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
-            # On force la hauteur à 250px pour l'alignement
-            st.image(images_melangees[i], use_container_width=True, height=250) 
+            # 🔥 On utilise du HTML pour forcer la hauteur de l'image (250px) et l'alignement
+            st.markdown(
+                f'<img src="{images_melangees[i]}" style="width:100%; height:200px; object-fit:cover; border-radius:5px;">', 
+                unsafe_allow_html=True
+            )
             st.info(f"**Top {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
@@ -212,7 +195,10 @@ if selected_user:
     for i, pid in enumerate(item_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
-            st.image(images_melangees[i+5], use_container_width=True, height=250) 
+            st.markdown(
+                f'<img src="{images_melangees[i+5]}" style="width:100%; height:200px; object-fit:cover; border-radius:5px;">', 
+                unsafe_allow_html=True
+            )
             st.success(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
@@ -225,5 +211,8 @@ if selected_user:
     for i, pid in enumerate(user_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
-            st.image(images_melangees[i+10], use_container_width=True, height=250) 
+            st.markdown(
+                f'<img src="{images_melangees[i+10]}" style="width:100%; height:200px; object-fit:cover; border-radius:5px;">', 
+                unsafe_allow_html=True
+            )
             st.warning(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")

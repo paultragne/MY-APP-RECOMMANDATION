@@ -1,27 +1,88 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import base64
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# ⚙️ 1. CONFIGURATION DE LA PAGE VISUELLE
+# ⚙️ 1. PAGE CONFIGURATION & UI THEMING (AMAZON DA)
 # ==========================================
 st.set_page_config(
-    page_title="Recommandation Amazon Beauty",
+    page_title="Amazon Beauty Recommender",
     page_icon="🛍️",
     layout="wide"
 )
 
-# Titre principal de l'application
-st.title("🛍️ Système de Recommandation Amazon Beauty")
-st.markdown("Rentrez un numéro d'utilisateur (User ID) pour voir ses recommandations personnalisées.")
+# 🎨 APPLICATION DES COULEURS AMAZON (Noir, Orange, Blanc)
+# Nous utilisons du CSS pour injecter les couleurs directement.
+st.markdown("""
+<style>
+    /* Global Background and Text Color */
+    .stApp {
+        background-color: #FFFFFF; /* White background */
+        color: #111111; /* Amazon dark text */
+    }
+
+    /* Titles and Headings (Dark text) */
+    h1, h2, h3, h3, h5, h6 {
+        color: #111111 !important;
+    }
+
+    /* Sidebar styling (Dark background) */
+    [data-testid="stSidebar"] {
+        background-color: #232F3E; /* Amazon dark blue/black sidebar */
+        color: #FFFFFF;
+    }
+    
+    /* Text inside sidebar */
+    [data-testid="stSidebar"] .stMarkdown {
+        color: #FFFFFF;
+    }
+    
+    /* Selectbox inside sidebar */
+    [data-testid="stSidebar"] [data-baseweb="select"] {
+        color: #111111; /* Dropdown text dark */
+    }
+
+    /* Recommendation boxes custom style (Cards) */
+    .stInfo, .stSuccess, .stWarning {
+        background-color: #F8F8F8; /* Light gray card background */
+        border: 1px solid #DDDDDD; /* Subtle border */
+        border-radius: 4px;
+        color: #111111 !important;
+        padding: 1rem;
+    }
+    
+    /* Customization of the info, success, warning colors to match Amazon Orange */
+    .stInfo, .stSuccess, .stWarning {
+        border-top: 4px solid #FF9900 !important; /* Amazon Orange line */
+    }
+
+    /* Button and interaction colors (Amazon Orange) */
+    .stButton>button {
+        background-color: #FF9900;
+        color: #FFFFFF;
+        border-radius: 4px;
+        border: none;
+    }
+    
+    .stButton>button:hover {
+        background-color: #CC7A00; /* Darker orange on hover */
+    }
+</style>
+""", unsafe_allow_html=True)
+
+# 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Main Title)
+st.title("🛍️ Amazon Beauty Recommendation System")
+st.markdown("Enter a User ID in the sidebar to see personalized beauty recommendations.")
 
 # ==========================================
-# 📥 2. CHARGEMENT DE LA BASE DE DONNÉES
+# 📥 2. DATA LOADING
 # ==========================================
+# 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Data Loading Texts)
 @st.cache_data
 def load_data():
-    # Lit le fichier Excel et ne garde que 2500 lignes pour économiser la mémoire
+    # Reads the Excel file and keeps only 2500 rows to save memory
     df = pd.read_excel("Group3_Cleaned.xlsx", engine="openpyxl") 
     df = df.head(2500)
     return df
@@ -29,21 +90,22 @@ def load_data():
 try:
     data_clean = load_data()
 except Exception as e:
-    st.error(f"Erreur de chargement de la base de données : {e}")
+    # 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Error Message)
+    st.error(f"Error loading the database: {e}")
     st.stop()
 
 # ==========================================
-# 🧮 3. CALCULS DES MATRICES DE SIMILARITÉ
+# 🧮 3. SIMILARITY MATRIX CALCULATIONS
 # ==========================================
 @st.cache_data
 def prepare_matrices(df):
     rating_matrix = df.pivot_table(index="UserId", columns="ProductId", values="Rating").fillna(0)
     
-    # Similarité Utilisateur (User-Based)
+    # User Similarity (User-Based)
     user_sim = cosine_similarity(rating_matrix)
     user_similarity = pd.DataFrame(user_sim, index=rating_matrix.index, columns=rating_matrix.index)
     
-    # Similarité Produit (Item-Based)
+    # Item Similarity (Item-Based)
     item_sim = cosine_similarity(rating_matrix.T)
     item_similarity = pd.DataFrame(item_sim, index=rating_matrix.columns, columns=rating_matrix.columns)
     
@@ -51,7 +113,7 @@ def prepare_matrices(df):
 
 rating_matrix_cf, user_similarity, item_similarity = prepare_matrices(data_clean)
 
-# Préparation du modèle de Popularité (2 dernières années)
+# Popularity Model Preparation (last 2 years)
 latest_date = pd.to_datetime(data_clean["Timestamp_Converted"]).max()
 two_years_ago = latest_date - pd.DateOffset(years=2)
 data_recent = data_clean[pd.to_datetime(data_clean["Timestamp_Converted"]) >= two_years_ago].copy()
@@ -64,10 +126,10 @@ popularity_model = popularity_model[popularity_model["n_rating"] >= 2].sort_valu
 
 
 # ==========================================
-# 🧠 4. LES MOTEURS DE RECOMMANDATION
+# 🧠 4. RECOMMENDATION ENGINES
 # ==========================================
 
-# Moteur Item-Based (Produits similaires aux achats passés)
+# Item-Based Engine (Products similar to past purchases)
 def recommend_item_based(user_id, top_n=5, k=30):
     user_ratings = rating_matrix_cf.loc[user_id]
     rated_items = user_ratings[user_ratings > 0]
@@ -79,7 +141,7 @@ def recommend_item_based(user_id, top_n=5, k=30):
     scores[rated_items.index] = -np.inf
     return scores.sort_values(ascending=False).head(top_n).index.tolist()
 
-# Moteur User-Based (Produits aimés par des gens similaires)
+# User-Based Engine (Products liked by similar people)
 def recommend_user_based(user_id, top_n=5, k=30):
     sim_scores = user_similarity[user_id].drop(user_id)
     top_users = sim_scores.sort_values(ascending=False).head(k)
@@ -91,100 +153,115 @@ def recommend_user_based(user_id, top_n=5, k=30):
 
 
 # ==========================================
-# 🖥️ 5. L'INTERFACE VISUELLE (CE QUE L'ON VOIT)
+# 🖥️ 5. VISUAL INTERFACE (UI)
 # ==========================================
 
-import random # Outil pour le mélange aléatoire
+# 🎨 Configuration CSS pour l'alignement parfait (CARRÉ)
+# object-fit: cover for scaling without distortion, height is fixed to 200px
+style_html_card = 'width:100%; height:200px; object-fit:cover; border-radius:4px; border: 1px solid #DDDDDD;'
 
-# --- LA CRÈME DE LA CRÈME : 20 IMAGES DE BEAUTÉ GARANTIES 100% ACTIVES ---
-# J'ai testé manuellement chacun de ces 20 liens sur Streamlit Cloud.
-# Ils sont stables, rapides et magnifiques. ZÉRO TROU BLANC GARANTI.
-banque_images_beaute = [
-    "https://images.unsplash.com/photo-1612817288484-6f916006741a?w=400", # Palettes makeup
-    "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400", # Crème soin pot
-    "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400", # Rouge à lèvres chic
-    "https://images.unsplash.com/photo-1596462502278-27bfdc403348?w=400", # Pinceaux et poudre
-    "https://images.unsplash.com/photo-1522335715696-263297be9043?w=400", # Fond de teint tube
-    "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=400", # Crème flacon pompe
-    "https://images.unsplash.com/photo-1617897903246-719242758050?w=400", # Parfum bouteille
-    "https://images.unsplash.com/photo-1515688594390-b649af70d282?w=400", # Maquillage divers rosé
-    "https://images.unsplash.com/photo-1594484208280-efa00f96fc21?w=400", # Vernis à ongles
-    "https://images.unsplash.com/photo-1515377905703-c4788e51af15?w=400", # Soin visage tube blanc
-    "https://images.unsplash.com/photo-1526045431048-f857369aba09?w=400", # Parfum luxe
-    "https://images.unsplash.com/photo-1601055903647-8f76376c3185?w=400", # Sérum pipette
-    "https://images.unsplash.com/photo-1598440947619-2c35fc9aa908?w=400", # Pots de crème alignés
-    "https://images.unsplash.com/photo-1590156221122-c29cfcbeb93b?w=400", # Mascara noir
-    "https://images.unsplash.com/photo-1608248597279-f99d160bfcbc?w=400", # Palette fards neutres
-    "https://images.unsplash.com/photo-1583241800318-7b987010738f?w=400", # Crème main tube
-    "https://images.unsplash.com/photo-1570554520913-71902ec7ab1e?w=400", # Brosses cheveux
-    "https://images.unsplash.com/photo-1519735777090-ec97162ec268?w=400", # Huile corps bouteille
-    "https://images.unsplash.com/photo-1619451334792-150fd785ee74?w=400", # Makeup or & noir
-    "https://images.unsplash.com/photo-1611080626919-7cf5a9dbab5b?w=400"  # Rouge à lèvres ouvert
-]
+# 🎨 Configuration CSS pour l'historique (plus petit)
+style_html_history = 'width:100%; height:120px; object-fit:cover; border-radius:4px; border: 1px solid #DDDDDD;'
 
-# Barre latérale pour choisir l'utilisateur
-st.sidebar.header("👤 Espace Client")
+
+# 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Sidebar & Selectbox)
+st.sidebar.header("👤 Your Amazon Account")
 users_list = data_clean["UserId"].unique()
-selected_user = st.sidebar.selectbox("Choisissez ou collez un UserId :", users_list)
+selected_user = st.sidebar.selectbox("Choose or paste a User ID:", users_list)
 
 if selected_user:
     
-    # On tire 15 images parmi nos 20 images garanties
-    images_melangees = random.sample(banque_images_beaute, 15)
-    
-    # Historique des achats de l'utilisateur
-    st.subheader("🛒 Produits déjà achetés par cet utilisateur")
+    # 🎨 AJOUT DE PHOTOS DANS L'HISTORIQUE (Purchased products)
+    st.subheader("🛒 Based on your purchase history")
     watched = data_clean[data_clean["UserId"] == selected_user][["ProductId", "product_name"]].drop_duplicates()
-    for _, row in watched.head(3).iterrows():
-        st.write(f"- {row['product_name']} (ID: {row['ProductId']})")
+    
+    # Layout the already purchased products as columns with images
+    cols_purchased = st.columns(3)
+    # Get up to 3 purchased products
+    purchased_items = watched.head(3).iterrows()
+    last_purchased_name = "" # Store the last name to use in modified item-based recommendation
+
+    for i, row_data in enumerate(purchased_items):
+        idx, row = row_data
+        p_name = row['product_name']
+        last_purchased_name = p_name # Update last_purchased_name
+
+        with cols_purchased[i]:
+            # 🔥 Utilisation d'images générées Picsum pour l'historique (carrées et alignées)
+            # random=hist{i} force une image différente pour chaque achat
+            url_generated = f"https://picsum.photos/300/300?random=hist{i}"
+            st.markdown(
+                f'<img src="{url_generated}" style="{style_html_history}">', 
+                unsafe_allow_html=True
+            )
+            # 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Purchased Text)
+            st.markdown(f'<p style="color:#111111; font-size: 0.85rem; margin-top:5px;"><strong>Purchased</strong><br>{p_name[:60]}...</p>', unsafe_allow_html=True)
         
     st.divider()
 
-    # --- Configuration HTML pour l'alignement parfait ---
-    style_html = 'width:100%; height:200px; object-fit:cover; border-radius:5px; border: 1px solid #f0f2f6;'
-
-    # --- LIGNE 1 : POPULARITÉ ---
-    st.subheader("🔥 Top 5 des produits en vogue du moment (Popularité)")
+    # --- LIGNE 1 : POPULARITÉ (Vrai texte Amazon + Couleur Orange) ---
+    # 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Popularity Header)
+    st.subheader("🔥 Top 5 Best Sellers in Beauty (Popularité)")
     pop_recs = popularity_model.head(5).index.tolist()
     
     col_pop = st.columns(5)
     for i, pid in enumerate(pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
+            # 🔥 Utilisation d'images générées Picsum pour les recommandations (carrées et alignées)
+            url_generated = f"https://picsum.photos/300/300?random=pop{i}"
             st.markdown(
-                f'<img src="{images_melangees[i]}" style="{style_html}">', 
+                f'<img src="{url_generated}" style="{style_html_card}">', 
                 unsafe_allow_html=True
             )
-            st.info(f"**Top {i+1}**\n\n{p_name[:60]}...")
+            # 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Top Text)
+            # The .stInfo style is customized to Amazon colors at the top.
+            st.info(f"**Best Seller {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
 
-    # --- LIGNE 2 : ITEM-BASED ---
-    st.subheader("🎯 Top 5 en fonction de vos achats précédents (Item-Based)")
+    # --- LIGNE 2 : ITEM-BASED (Contextuelle "parce que vous avez acheté") ---
+    # 🎨 RECOMMANDATION CONTEXTUELLE (Because you bought...)
+    # We create the dynamic English header.
+    if last_purchased_name:
+        contextual_header = f'🎯 Items similar to "{last_purchased_name[:30]}..." (Item-Based)'
+    else:
+        contextual_header = "🎯 Recommended based on your purchases (Item-Based)"
+        
+    st.subheader(contextual_header)
     item_recs = recommend_item_based(selected_user)
     
     col_item = st.columns(5)
     for i, pid in enumerate(item_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
+            # 🔥 Utilisation d'images générées Picsum
+            url_generated = f"https://picsum.photos/300/300?random=item{i}"
             st.markdown(
-                f'<img src="{images_melangees[i+5]}" style="{style_html}">', 
+                f'<img src="{url_generated}" style="{style_html_card}">', 
                 unsafe_allow_html=True
             )
-            st.success(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
+            # 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Recommended Text)
+            # St.success customized to Amazon Orange at the top.
+            st.success(f"**Similar {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
 
-    # --- LIGNE 3 : USER-BASED ---
-    st.subheader("💡 Vous pourriez aussi aimer... (User-Based)")
+    # --- LIGNE 3 : USER-BASED (Traductions) ---
+    # 🎨 TRADUCTION DES TEXTES EN ANGLAIS (User-Based Header)
+    st.subheader("💡 You might also like... (User-Based)")
     user_recs = recommend_user_based(selected_user)
     
     col_user = st.columns(5)
     for i, pid in enumerate(user_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
+            # 🔥 Utilisation d'images générées Picsum
+            url_generated = f"https://picsum.photos/300/300?random=user{i}"
             st.markdown(
-                f'<img src="{images_melangees[i+10]}" style="{style_html}">', 
+                f'<img src="{url_generated}" style="{style_html_card}">', 
                 unsafe_allow_html=True
             )
-            st.warning(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
+            # 🎨 TRADUCTION DES TEXTES EN ANGLAIS (Recommended Text)
+            # St.warning customized to Amazon Orange at the top.
+            st.warning(f"**For You {i+1}**\n\n{p_name[:60]}...")

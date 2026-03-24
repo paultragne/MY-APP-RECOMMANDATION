@@ -109,7 +109,7 @@ if selected_user:
         
     st.divider()
 
-    # --- LIGNE 1 : POPULARITÉ (Thème : Parfums et Cosmétiques chics) ---
+    # --- LIGNE 1 : POPULARITÉ ---
     st.subheader("🔥 Top 5 des produits en vogue du moment (Popularité)")
     pop_recs = popularity_model.head(5).index.tolist()
     
@@ -117,14 +117,14 @@ if selected_user:
     for i, pid in enumerate(pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
-            # Utilise des mots-clés liés au parfum pour cette ligne
-            url_unique = f"https://source.unsplash.com/featured/300x300?perfume,cosmetics&sig={i}"
+            # Utilisation de Picsum avec un ID unique pour chaque produit (aucune image cassée)
+            url_unique = f"https://picsum.photos/300/300?random={i+1}"
             st.image(url_unique)
             st.info(f"**Top {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
 
-    # --- LIGNE 2 : ITEM-BASED (Thème : Crèmes et soins de la peau) ---
+    # --- LIGNE 2 : ITEM-BASED ---
     st.subheader("🎯 Top 5 en fonction de vos achats précédents (Item-Based)")
     item_recs = recommend_item_based(selected_user)
     
@@ -132,14 +132,13 @@ if selected_user:
     for i, pid in enumerate(item_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
-            # Utilise des mots-clés liés aux crèmes pour cette ligne
-            url_unique = f"https://source.unsplash.com/featured/300x300?skincare,cream&sig={i+5}"
+            url_unique = f"https://picsum.photos/300/300?random={i+6}"
             st.image(url_unique)
             st.success(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
 
-    # --- LIGNE 3 : USER-BASED (Thème : Maquillage et Beauté) ---
+    # --- LIGNE 3 : USER-BASED ---
     st.subheader("💡 Vous pourriez aussi aimer... (User-Based)")
     user_recs = recommend_user_based(selected_user)
     
@@ -147,7 +146,6 @@ if selected_user:
     for i, pid in enumerate(user_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
-            # Utilise des mots-clés liés au maquillage pour cette ligne
-            url_unique = f"https://source.unsplash.com/featured/300x300?makeup,lipstick&sig={i+10}"
+            url_unique = f"https://picsum.photos/300/300?random={i+11}"
             st.image(url_unique)
             st.warning(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")

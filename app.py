@@ -113,15 +113,16 @@ if selected_user:
     st.subheader("🔥 Top 5 des produits en vogue du moment (Popularité)")
     pop_recs = popularity_model.head(5).index.tolist()
     
-    col_pop = st.columns(5) # Crée 5 colonnes alignées
+    col_pop = st.columns(5)
     for i, pid in enumerate(pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
+            # 🖼️ Lien magique Amazon pour récupérer la vraie photo via le ProductId
+            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
+            st.image(url_image)
             st.info(f"**Top {i+1}**\n\n{p_name[:60]}...")
 
-    st.divider()
-
-    # --- LIGNE 2 : ITEM-BASED ---
+   # --- LIGNE 2 : ITEM-BASED ---
     st.subheader("🎯 Top 5 en fonction de vos achats précédents (Item-Based)")
     item_recs = recommend_item_based(selected_user)
     
@@ -129,11 +130,11 @@ if selected_user:
     for i, pid in enumerate(item_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
+            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
+            st.image(url_image)
             st.success(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
-
-    st.divider()
-
-    # --- LIGNE 3 : USER-BASED ---
+  
+   # --- LIGNE 3 : USER-BASED ---
     st.subheader("💡 Vous pourriez aussi aimer... (User-Based)")
     user_recs = recommend_user_based(selected_user)
     
@@ -141,4 +142,6 @@ if selected_user:
     for i, pid in enumerate(user_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
+            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
+            st.image(url_image)
             st.warning(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")

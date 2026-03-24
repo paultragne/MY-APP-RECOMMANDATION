@@ -21,16 +21,11 @@ st.markdown("Rentrez un numéro d'utilisateur (User ID) pour voir ses recommanda
 # ==========================================
 @st.cache_data
 def load_data():
-    try:
-        df = pd.read_excel("Group3_Cleaned.xlsx") 
-    except:
-        df = pd.read_csv("Group3_Cleaned.csv")
-    
-    # 🔥 AJOUTEZ CETTE LIGNE pour garder l'application fluide et éviter le plantage :
-    df = df.head(3000) 
-    
+    # Lit le fichier Excel et ne garde que 2500 lignes pour économiser la mémoire
+    df = pd.read_excel("Group3_Cleaned.xlsx", engine="openpyxl") 
+    df = df.head(2500)
     return df
-
+   
 try:
     data_clean = load_data()
 except Exception as e:

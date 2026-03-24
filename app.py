@@ -191,7 +191,7 @@ selected_user = st.sidebar.selectbox("Choose a User Profile:", users_list)
 if selected_user:
     
     # 🛒 1. HISTORIQUE D'ACHATS
-    st.subheader("🛒 Based on your purchase history")
+    st.subheader("🛒 Based on your recent purchases")
     watched = data_clean[data_clean["UserId"] == selected_user][["ProductId", "product_name"]].drop_duplicates()
     
     cols_purchased = st.columns(3)
@@ -212,7 +212,7 @@ if selected_user:
     st.divider()
 
     # --- 2. POPULARITÉ ---
-    st.subheader("🔥 Top 5 Best Sellers in Beauty")
+    st.subheader("Top 5 Best Sellers in Beauty")
     
     all_pop_recs = popularity_model.index.tolist()
     filtered_pop_recs = [pid for pid in all_pop_recs if pid not in st.session_state.disliked_products]
@@ -240,9 +240,9 @@ if selected_user:
 
     # --- 3. ITEM-BASED ---
     if last_purchased_name:
-        contextual_header = f'🎯 Items similar to "{last_purchased_name[:30]}..."'
+        contextual_header = f'Items similar to "{last_purchased_name[:30]}..."'
     else:
-        contextual_header = "🎯 Recommended based on your purchases"
+        contextual_header = "Recommended based on your purchases"
         
     st.subheader(contextual_header)
     
@@ -271,7 +271,7 @@ if selected_user:
     st.divider()
 
     # --- 4. USER-BASED ---
-    st.subheader("💡 Customers also shopped for")
+    st.subheader("Customers also shopped for")
     
     all_user_recs = recommend_user_based(selected_user)
     filtered_user_recs = [pid for pid in all_user_recs if pid not in st.session_state.disliked_products]

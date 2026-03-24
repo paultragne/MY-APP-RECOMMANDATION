@@ -94,6 +94,11 @@ def recommend_user_based(user_id, top_n=5, k=30):
 # 🖥️ 5. L'INTERFACE VISUELLE (CE QUE L'ON VOIT)
 # ==========================================
 
+# Images de secours élégantes et gratuites (Unsplash)
+img_popularite = "https://images.unsplash.com/photo-1617897903246-719242758050?w=300"
+img_item = "https://images.unsplash.com/photo-1571781926291-c477ebfd024b?w=300"
+img_user = "https://images.unsplash.com/photo-1522335715696-263297be9043?w=300"
+
 # Barre latérale pour choisir l'utilisateur
 st.sidebar.header("👤 Espace Client")
 users_list = data_clean["UserId"].unique()
@@ -109,7 +114,7 @@ if selected_user:
         
     st.divider()
 
-    # --- LIGNE 1 : POPULARITÉ ---
+    # --- LIGNE 1 : POPULARITÉ (Vraie image Amazon + Secours) ---
     st.subheader("🔥 Top 5 des produits en vogue du moment (Popularité)")
     pop_recs = popularity_model.head(5).index.tolist()
     
@@ -117,12 +122,18 @@ if selected_user:
     for i, pid in enumerate(pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
-            # 🖼️ Lien magique Amazon pour récupérer la vraie photo via le ProductId
-            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
-            st.image(url_image)
+            url_amazon = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
+            try:
+                # On essaie de charger la vraie image Amazon
+                st.image(url_amazon)
+            except:
+                # Si Amazon bloque ou l'image n'existe plus, on met une belle image Unsplash
+                st.image(img_popularite)
             st.info(f"**Top {i+1}**\n\n{p_name[:60]}...")
 
-   # --- LIGNE 2 : ITEM-BASED ---
+    st.divider()
+
+    # --- LIGNE 2 : ITEM-BASED (Image aléatoire thème Beauté) ---
     st.subheader("🎯 Top 5 en fonction de vos achats précédents (Item-Based)")
     item_recs = recommend_item_based(selected_user)
     
@@ -130,11 +141,17 @@ if selected_user:
     for i, pid in enumerate(item_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
-            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
-            st.image(url_image)
+            try:
+                # Tente Amazon
+                st.image(f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg")
+            except:
+                # Sinon image de soin Unsplash
+                st.image(img_item)
             st.success(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
-  
-   # --- LIGNE 3 : USER-BASED ---
+
+    st.divider()
+
+    # --- LIGNE 3 : USER-BASED (Image aléatoire thème Beauté) ---
     st.subheader("💡 Vous pourriez aussi aimer... (User-Based)")
     user_recs = recommend_user_based(selected_user)
     
@@ -142,6 +159,9 @@ if selected_user:
     for i, pid in enumerate(user_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
-            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
-            st.image(url_image)
+            try:
+                st.image(f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg")
+            except:
+                # Sinon image de maquillage Unsplash
+                st.image(img_user)
             st.warning(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")

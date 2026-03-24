@@ -129,7 +129,6 @@ popularity_model = popularity_model[popularity_model["n_rating"] >= 2].sort_valu
 # 🧠 4. RECOMMENDATION ENGINES
 # ==========================================
 
-# On pousse la sélection à 100 pour pouvoir remplacer les bannis par les suivants du classement !
 def recommend_item_based(user_id, top_n=5, k=30):
     user_ratings = rating_matrix_cf.loc[user_id]
     rated_items = user_ratings[user_ratings > 0]
@@ -139,7 +138,7 @@ def recommend_item_based(user_id, top_n=5, k=30):
         top_items = sims.sort_values(ascending=False).head(k)
         scores[top_items.index] += top_items * rating
     scores[rated_items.index] = -np.inf
-    return scores.sort_values(ascending=False).head(100).index.tolist() # Donnes-en 100 pour filtrer après
+    return scores.sort_values(ascending=False).head(100).index.tolist()
 
 def recommend_user_based(user_id, top_n=5, k=30):
     sim_scores = user_similarity[user_id].drop(user_id)
@@ -148,7 +147,7 @@ def recommend_user_based(user_id, top_n=5, k=30):
     scores = weighted_ratings / top_users.sum()
     user_rated = rating_matrix_cf.loc[user_id]
     scores[user_rated > 0] = -np.inf
-    return scores.sort_values(ascending=False).head(100).index.tolist() # Donnes-en 100 pour filtrer après
+    return scores.sort_values(ascending=False).head(100).index.tolist()
 
 
 # ==========================================
@@ -175,11 +174,10 @@ def get_base64_image(image_path):
     except:
         return None
 
-# Mappe intelligemment un ProductId à une image fixe locale pour que l'image suive son produit !
+# Mappe intelligemment un ProductId à une image fixe locale parmi vos 55 images !
 def get_image_for_product(product_id):
     if not banque_images_locales:
         return None
-    # L'empreinte (hash) de l'ID produit décide de l'image. Toujours la même image pour le même produit !
     index_image = hash(product_id) % len(banque_images_locales)
     return get_base64_image(banque_images_locales[index_image])
 
@@ -224,7 +222,7 @@ if selected_user:
     for i, pid in enumerate(current_pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
-            img_b64 = get_image_for_product(pid) # L'image est collée au ProductId !
+            img_b64 = get_image_for_product(pid)
             if img_b64:
                 st.markdown(f'<img src="{img_b64}" style="{style_html_card}">', unsafe_allow_html=True)
             st.info(f"**Best Seller**\n\n{p_name[:50]}...")
@@ -240,7 +238,7 @@ if selected_user:
 
     st.divider()
 
-    # --- 3. ITEM-BASED (Aussi avec pouces !) ---
+    # --- 3. ITEM-BASED ---
     if last_purchased_name:
         contextual_header = f'🎯 Items similar to "{last_purchased_name[:30]}..."'
     else:
@@ -272,7 +270,7 @@ if selected_user:
 
     st.divider()
 
-    # --- 4. USER-BASED (Aussi avec pouces !) ---
+    # --- 4. USER-BASED ---
     st.subheader("💡 Customers also shopped for")
     
     all_user_recs = recommend_user_based(selected_user)

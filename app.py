@@ -21,11 +21,8 @@ st.markdown("Rentrez un numéro d'utilisateur (User ID) pour voir ses recommanda
 # ==========================================
 @st.cache_data
 def load_data():
-    # Tente de charger en Excel, sinon en CSV
-    try:
-        df = pd.read_excel("Group3_Cleaned.xlsx") 
-    except:
-        df = pd.read_csv("Group3_Cleaned.csv")
+    # Lit uniquement le fichier Excel présent sur GitHub
+    df = pd.read_excel("Group3_Cleaned.xlsx", engine="openpyxl") 
     return df
 
 try:

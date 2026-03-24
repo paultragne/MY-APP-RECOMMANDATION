@@ -94,11 +94,6 @@ def recommend_user_based(user_id, top_n=5, k=30):
 # 🖥️ 5. L'INTERFACE VISUELLE (CE QUE L'ON VOIT)
 # ==========================================
 
-# Liens d'images élégantes de l'univers de la beauté (Unsplash)
-img_popularite = "https://images.unsplash.com/photo-1612817288484-6f916006741a?w=400" # Produits de beauté
-img_item = "https://images.unsplash.com/photo-1556228578-0d85b1a4d571?w=400"       # Crème et soins
-img_user = "https://images.unsplash.com/photo-1512496015851-a90fb38ba796?w=400"       # Maquillage chic
-
 # Barre latérale pour choisir l'utilisateur
 st.sidebar.header("👤 Espace Client")
 users_list = data_clean["UserId"].unique()
@@ -122,7 +117,9 @@ if selected_user:
     for i, pid in enumerate(pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
-            st.image(img_popularite) # Affiche la photo d'illustration
+            # L'astuce du "?sig=" force Unsplash à donner une image différente pour chaque produit !
+            url_unique = f"https://picsum.photos/300/300?sig={pid}"
+            st.image(url_unique)
             st.info(f"**Top {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
@@ -135,7 +132,8 @@ if selected_user:
     for i, pid in enumerate(item_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
-            st.image(img_item) # Affiche la photo d'illustration
+            url_unique = f"https://picsum.photos/300/300?sig={pid}2"
+            st.image(url_unique)
             st.success(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
 
     st.divider()
@@ -148,5 +146,6 @@ if selected_user:
     for i, pid in enumerate(user_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
-            st.image(img_user) # Affiche la photo d'illustration
+            url_unique = f"https://picsum.photos/300/300?sig={pid}3"
+            st.image(url_unique)
             st.warning(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")

@@ -1,6 +1,9 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
+import base64
+import random
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
@@ -16,7 +19,6 @@ st.set_page_config(
 if "disliked_products" not in st.session_state:
     st.session_state.disliked_products = set()
 
-# CSS pour le style Amazon (Noir, Orange, Blanc) et alignement des boutons
 st.markdown("""
 <style>
     .stApp { background-color: #FFFFFF; color: #111111; }
@@ -72,10 +74,8 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# --- BANNIÈRE AMAZON RÉELLE ---
 st.image("https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg", width=120)
 
-# --- MODIFICATION 1 : BARRE DE RECHERCHE FACTICE (STYLE AMAZON) ---
 st.markdown("""
 <div class="search-bar">
     <input type="text" class="search-input" placeholder="Search Amazon Beauty...">
@@ -129,6 +129,7 @@ popularity_model = popularity_model[popularity_model["n_rating"] >= 2].sort_valu
 # 🧠 4. RECOMMENDATION ENGINES
 # ==========================================
 
+# On pousse la sélection à 100 pour pouvoir remplacer les bannis par les suivants du classement !
 def recommend_item_based(user_id, top_n=5, k=30):
     user_ratings = rating_matrix_cf.loc[user_id]
     rated_items = user_ratings[user_ratings > 0]
@@ -138,7 +139,7 @@ def recommend_item_based(user_id, top_n=5, k=30):
         top_items = sims.sort_values(ascending=False).head(k)
         scores[top_items.index] += top_items * rating
     scores[rated_items.index] = -np.inf
-    return scores.sort_values(ascending=False).head(top_n).index.tolist()
+    return scores.sort_values(ascending=False).head(100).index.tolist() # Donnes-en 100 pour filtrer après
 
 def recommend_user_based(user_id, top_n=5, k=30):
     sim_scores = user_similarity[user_id].drop(user_id)
@@ -147,12 +148,40 @@ def recommend_user_based(user_id, top_n=5, k=30):
     scores = weighted_ratings / top_users.sum()
     user_rated = rating_matrix_cf.loc[user_id]
     scores[user_rated > 0] = -np.inf
-    return scores.sort_values(ascending=False).head(top_n).index.tolist()
+    return scores.sort_values(ascending=False).head(100).index.tolist() # Donnes-en 100 pour filtrer après
 
 
 # ==========================================
 # 🖥️ 5. VISUAL INTERFACE (UI)
 # ==========================================
+
+chemin_dossier_images = "image_produits"
+banque_images_locales = []
+
+try:
+    if os.path.exists(chemin_dossier_images):
+        for fichier in os.listdir(chemin_dossier_images):
+            if fichier.lower().endswith(('.jpg', '.jpeg', '.png')):
+                banque_images_locales.append(os.path.join(chemin_dossier_images, fichier))
+except Exception as e:
+    st.error(f"Error reading image_produits folder: {e}")
+
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            encoded = base64.b64encode(img_file.read()).decode()
+            mime = "image/jpeg" if image_path.lower().endswith((".jpg", ".jpeg")) else "image/png"
+            return f"data:{mime};base64,{encoded}"
+    except:
+        return None
+
+# Mappe intelligemment un ProductId à une image fixe locale pour que l'image suive son produit !
+def get_image_for_product(product_id):
+    if not banque_images_locales:
+        return None
+    # L'empreinte (hash) de l'ID produit décide de l'image. Toujours la même image pour le même produit !
+    index_image = hash(product_id) % len(banque_images_locales)
+    return get_base64_image(banque_images_locales[index_image])
 
 style_html_card = 'width:100%; height:180px; object-fit:cover; border-radius:4px; border: 1px solid #DDDDDD;'
 style_html_history = 'width:100%; height:120px; object-fit:cover; border-radius:4px; border: 1px solid #DDDDDD;'
@@ -163,7 +192,7 @@ selected_user = st.sidebar.selectbox("Choose a User Profile:", users_list)
 
 if selected_user:
     
-    # 🛒 HISTORIQUE D'ACHATS VISUEL
+    # 🛒 1. HISTORIQUE D'ACHATS
     st.subheader("🛒 Based on your purchase history")
     watched = data_clean[data_clean["UserId"] == selected_user][["ProductId", "product_name"]].drop_duplicates()
     
@@ -177,69 +206,93 @@ if selected_user:
         last_purchased_name = p_name
 
         with cols_purchased[i]:
-            url_generated = f"https://picsum.photos/300/300?random=hist{i}"
-            st.markdown(f'<img src="{url_generated}" style="{style_html_history}">', unsafe_allow_html=True)
+            img_b64 = get_image_for_product(row['ProductId'])
+            if img_b64:
+                st.markdown(f'<img src="{img_b64}" style="{style_html_history}">', unsafe_allow_html=True)
             st.markdown(f'<p style="color:#111111; font-size: 0.85rem; margin-top:5px;"><strong>Purchased Item</strong><br>{p_name[:50]}...</p>', unsafe_allow_html=True)
         
     st.divider()
 
-    # --- MODIFICATION 2 : LIGNE 1 POPULARITÉ SANS LE MOT POPULARITÉ ET AVEC LES BOUTONS 👍/👎 ---
+    # --- 2. POPULARITÉ ---
     st.subheader("🔥 Top 5 Best Sellers in Beauty")
     
-    # On filtre les produits populaires : on exclut ceux que l'utilisateur a déjà "disliké"
     all_pop_recs = popularity_model.index.tolist()
     filtered_pop_recs = [pid for pid in all_pop_recs if pid not in st.session_state.disliked_products]
-    
-    # On prend les 5 premiers restants
     current_pop_recs = filtered_pop_recs[:5]
     
     col_pop = st.columns(5)
     for i, pid in enumerate(current_pop_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
-            url_generated = f"https://picsum.photos/300/300?random=pop{i}"
-            st.markdown(f'<img src="{url_generated}" style="{style_html_card}">', unsafe_allow_html=True)
-            st.info(f"**Best Seller {i+1}**\n\n{p_name[:50]}...")
+            img_b64 = get_image_for_product(pid) # L'image est collée au ProductId !
+            if img_b64:
+                st.markdown(f'<img src="{img_b64}" style="{style_html_card}">', unsafe_allow_html=True)
+            st.info(f"**Best Seller**\n\n{p_name[:50]}...")
             
-            # --- Système de Vote (Boutons miniatures côte à côte) ---
             vote_col1, vote_col2 = st.columns(2)
             with vote_col1:
                 if st.button(f"👍", key=f"like_pop_{pid}"):
-                    st.toast(f"Saved to your wishlist!") # Notification légère en bas à droite
+                    st.toast(f"Saved to your list!")
             with vote_col2:
                 if st.button(f"👎", key=f"dislike_pop_{pid}"):
-                    st.session_state.disliked_products.add(pid) # On l'ajoute aux bannis
-                    st.rerun() # On recharge instantanément la page
+                    st.session_state.disliked_products.add(pid)
+                    st.rerun()
 
     st.divider()
 
-    # --- MODIFICATION 3 : LIGNE 2 SANS LE MOT ITEM-BASED ---
+    # --- 3. ITEM-BASED (Aussi avec pouces !) ---
     if last_purchased_name:
         contextual_header = f'🎯 Items similar to "{last_purchased_name[:30]}..."'
     else:
         contextual_header = "🎯 Recommended based on your purchases"
         
     st.subheader(contextual_header)
-    item_recs = recommend_item_based(selected_user)
+    
+    all_item_recs = recommend_item_based(selected_user)
+    filtered_item_recs = [pid for pid in all_item_recs if pid not in st.session_state.disliked_products]
+    current_item_recs = filtered_item_recs[:5]
     
     col_item = st.columns(5)
-    for i, pid in enumerate(item_recs):
+    for i, pid in enumerate(current_item_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
-            url_generated = f"https://picsum.photos/300/300?random=item{i}"
-            st.markdown(f'<img src="{url_generated}" style="{style_html_card}">', unsafe_allow_html=True)
+            img_b64 = get_image_for_product(pid)
+            if img_b64:
+                st.markdown(f'<img src="{img_b64}" style="{style_html_card}">', unsafe_allow_html=True)
             st.success(f"**Similar Match**\n\n{p_name[:50]}...")
+            
+            vote_col1, vote_col2 = st.columns(2)
+            with vote_col1:
+                if st.button(f"👍", key=f"like_item_{pid}"):
+                    st.toast(f"Saved to your list!")
+            with vote_col2:
+                if st.button(f"👎", key=f"dislike_item_{pid}"):
+                    st.session_state.disliked_products.add(pid)
+                    st.rerun()
 
     st.divider()
 
-    # --- MODIFICATION 4 : LIGNE 3 SANS LE MOT USER-BASED ---
+    # --- 4. USER-BASED (Aussi avec pouces !) ---
     st.subheader("💡 Customers also shopped for")
-    user_recs = recommend_user_based(selected_user)
+    
+    all_user_recs = recommend_user_based(selected_user)
+    filtered_user_recs = [pid for pid in all_user_recs if pid not in st.session_state.disliked_products]
+    current_user_recs = filtered_user_recs[:5]
     
     col_user = st.columns(5)
-    for i, pid in enumerate(user_recs):
+    for i, pid in enumerate(current_user_recs):
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
-            url_generated = f"https://picsum.photos/300/300?random=user{i}"
-            st.markdown(f'<img src="{url_generated}" style="{style_html_card}">', unsafe_allow_html=True)
+            img_b64 = get_image_for_product(pid)
+            if img_b64:
+                st.markdown(f'<img src="{img_b64}" style="{style_html_card}">', unsafe_allow_html=True)
             st.warning(f"**For You**\n\n{p_name[:50]}...")
+            
+            vote_col1, vote_col2 = st.columns(2)
+            with vote_col1:
+                if st.button(f"👍", key=f"like_user_{pid}"):
+                    st.toast(f"Saved to your list!")
+            with vote_col2:
+                if st.button(f"👎", key=f"dislike_user_{pid}"):
+                    st.session_state.disliked_products.add(pid)
+                    st.rerun()

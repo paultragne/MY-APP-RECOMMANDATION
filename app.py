@@ -1,57 +1,153 @@
 import streamlit as st
 import pandas as pd
 import numpy as np
+import os
+import base64
+import random
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
-# ⚙️ 1. CONFIGURATION DE LA PAGE VISUELLE
+# ⚙️ 1. PAGE CONFIGURATION & UI THEMING
 # ==========================================
 st.set_page_config(
-    page_title="Recommandation Amazon Beauty",
+    page_title="Amazon.com : Beauty & Personal Care",
     page_icon="🛍️",
     layout="wide"
 )
 
-# Titre principal de l'application
-st.title("🛍️ Système de Recommandation Amazon Beauty")
-st.markdown("Rentrez un numéro d'utilisateur (User ID) pour voir ses recommandations personnalisées.")
+# --- INITIALISATION DES VARIABLES DE SESSION (POUR LE VOTE) ---
+if "disliked_products" not in st.session_state:
+    st.session_state.disliked_products = set()
+
+# --- CSS AMÉLIORÉ ---
+st.markdown("""
+<style>
+
+.stApp { background-color: #FFFFFF; color: #111111; }
+h1, h2, h3 { color: #111111 !important; }
+
+/* Sidebar Amazon */
+[data-testid="stSidebar"] { background-color: #232F3E; color: #FFFFFF; }
+[data-testid="stSidebar"] .stMarkdown { color: #FFFFFF; }
+
+/* Cartes produits améliorées */
+.product-card {
+    background-color: #F8F8F8;
+    border: 1px solid #DDDDDD;
+    border-radius: 6px;
+    padding: 1rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-top: 4px solid #FF9900 !important;
+
+    /* même hauteur pour toutes les cartes */
+    height: 350px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
+
+.product-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+}
+
+/* Images */
+.product-img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #DDDDDD;
+}
+
+.history-img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #DDDDDD;
+}
+
+/* Barre de recherche (visuelle seulement) */
+.search-bar {
+    display: flex;
+    margin-bottom: 2rem;
+}
+.search-input {
+    width: 80%;
+    padding: 10px;
+    border: 1px solid #DDDDDD;
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+}
+.search-button {
+    width: 20%;
+    padding: 10px;
+    background-color: #FF9900;
+    color: white;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+}
+
+/* Boutons Streamlit par défaut en orange */
+.stButton > button {
+    background-color: #FF9900;
+    color: #FFFFFF;
+    border-radius: 4px;
+    border: none;
+    width: 100%;
+    transition: background-color 0.2s ease;
+}
+.stButton > button:hover {
+    background-color: #CC7A00;
+}
+
+</style>
+""", unsafe_allow_html=True)
+
+st.image("https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg", width=120)
+
+st.markdown("""
+<div class="search-bar">
+    <input type="text" class="search-input" placeholder="Search Amazon Beauty...">
+    <div class="search-button">🔍 Search</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("### Welcome back! Explore your personalized recommendations below.")
 
 # ==========================================
-# 📥 2. CHARGEMENT DE LA BASE DE DONNÉES
+# 📥 2. DATA LOADING
 # ==========================================
 @st.cache_data
 def load_data():
-    # Lit le fichier Excel et ne garde que 2500 lignes pour économiser la mémoire
     df = pd.read_excel("Group3_Cleaned.xlsx", engine="openpyxl") 
     df = df.head(2500)
     return df
-   
+
+
 try:
     data_clean = load_data()
 except Exception as e:
-    st.error(f"Erreur de chargement de la base de données : {e}")
+    st.error(f"Error loading database: {e}")
     st.stop()
 
 # ==========================================
-# 🧮 3. CALCULS DES MATRICES DE SIMILARITÉ
+# 🧮 3. SIMILARITY MATRIX CALCULATIONS
 # ==========================================
 @st.cache_data
 def prepare_matrices(df):
     rating_matrix = df.pivot_table(index="UserId", columns="ProductId", values="Rating").fillna(0)
-    
-    # Similarité Utilisateur (User-Based)
     user_sim = cosine_similarity(rating_matrix)
     user_similarity = pd.DataFrame(user_sim, index=rating_matrix.index, columns=rating_matrix.index)
-    
-    # Similarité Produit (Item-Based)
     item_sim = cosine_similarity(rating_matrix.T)
     item_similarity = pd.DataFrame(item_sim, index=rating_matrix.columns, columns=rating_matrix.columns)
-    
     return rating_matrix, user_similarity, item_similarity
 
 rating_matrix_cf, user_similarity, item_similarity = prepare_matrices(data_clean)
 
-# Préparation du modèle de Popularité (2 dernières années)
 latest_date = pd.to_datetime(data_clean["Timestamp_Converted"]).max()
 two_years_ago = latest_date - pd.DateOffset(years=2)
 data_recent = data_clean[pd.to_datetime(data_clean["Timestamp_Converted"]) >= two_years_ago].copy()
@@ -62,12 +158,9 @@ popularity_model = data_recent.groupby("ProductId").agg(
 )
 popularity_model = popularity_model[popularity_model["n_rating"] >= 2].sort_values("avg_popularity", ascending=False)
 
-
 # ==========================================
-# 🧠 4. LES MOTEURS DE RECOMMANDATION
+# 🧠 4. RECOMMENDATION ENGINES
 # ==========================================
-
-# Moteur Item-Based (Produits similaires aux achats passés)
 def recommend_item_based(user_id, top_n=5, k=30):
     user_ratings = rating_matrix_cf.loc[user_id]
     rated_items = user_ratings[user_ratings > 0]
@@ -77,9 +170,8 @@ def recommend_item_based(user_id, top_n=5, k=30):
         top_items = sims.sort_values(ascending=False).head(k)
         scores[top_items.index] += top_items * rating
     scores[rated_items.index] = -np.inf
-    return scores.sort_values(ascending=False).head(top_n).index.tolist()
+    return scores.sort_values(ascending=False).head(100).index.tolist()
 
-# Moteur User-Based (Produits aimés par des gens similaires)
 def recommend_user_based(user_id, top_n=5, k=30):
     sim_scores = user_similarity[user_id].drop(user_id)
     top_users = sim_scores.sort_values(ascending=False).head(k)
@@ -87,61 +179,163 @@ def recommend_user_based(user_id, top_n=5, k=30):
     scores = weighted_ratings / top_users.sum()
     user_rated = rating_matrix_cf.loc[user_id]
     scores[user_rated > 0] = -np.inf
-    return scores.sort_values(ascending=False).head(top_n).index.tolist()
-
+    return scores.sort_values(ascending=False).head(100).index.tolist()
 
 # ==========================================
-# 🖥️ 5. L'INTERFACE VISUELLE (CE QUE L'ON VOIT)
+# 🖥️ 5. VISUAL INTERFACE (UI)
 # ==========================================
+chemin_dossier_images = "image_produits"
+banque_images_locales = []
 
-# Barre latérale pour choisir l'utilisateur
-st.sidebar.header("👤 Espace Client")
+try:
+    if os.path.exists(chemin_dossier_images):
+        for fichier in os.listdir(chemin_dossier_images):
+            if fichier.lower().endswith(('.jpg', '.jpeg', '.png')):
+                banque_images_locales.append(os.path.join(chemin_dossier_images, fichier))
+except Exception as e:
+    st.error(f"Error reading image_produits folder: {e}")
+
+def get_base64_image(image_path):
+    try:
+        with open(image_path, "rb") as img_file:
+            encoded = base64.b64encode(img_file.read()).decode()
+            mime = "image/jpeg" if image_path.lower().endswith((".jpg", ".jpeg")) else "image/png"
+            return f"data:{mime};base64,{encoded}"
+    except:
+        return None
+
+def get_image_for_product(product_id):
+    if not banque_images_locales:
+        return None
+    index_image = hash(product_id) % len(banque_images_locales)
+    return get_base64_image(banque_images_locales[index_image])
+
+# Styles HTML
+style_html_card = 'product-img'
+style_html_history = 'history-img'
+
+st.sidebar.header("👤 Your Amazon Account")
 users_list = data_clean["UserId"].unique()
-selected_user = st.sidebar.selectbox("Choisissez ou collez un UserId :", users_list)
+selected_user = st.sidebar.selectbox("Choose a User Profile:", users_list)
+
 
 if selected_user:
     
-    # Historique des achats de l'utilisateur
-    st.subheader("🛒 Produits déjà achetés par cet utilisateur")
+    # 🛒 1. HISTORIQUE D'ACHATS
+    st.subheader("🛒 Based on your recent purchases")
     watched = data_clean[data_clean["UserId"] == selected_user][["ProductId", "product_name"]].drop_duplicates()
-    for _, row in watched.head(3).iterrows():
-        st.write(f"- {row['product_name']} (ID: {row['ProductId']})")
+    
+    cols_purchased = st.columns(3)
+    purchased_items = watched.head(3).iterrows()
+    last_purchased_name = ""
+
+    for i, row_data in enumerate(purchased_items):
+        idx, row = row_data
+        p_name = row['product_name']
+        last_purchased_name = p_name
+
+        with cols_purchased[i]:
+            img_b64 = get_image_for_product(row['ProductId'])
+            if img_b64:
+                st.markdown(f'<img src="{img_b64}" class="history-img">', unsafe_allow_html=True)
+            st.markdown(
+                f'<p style="color:#111111; font-size: 0.85rem; margin-top:5px;"><strong>Purchased Item</strong><br>{p_name[:50]}...</p>',
+                unsafe_allow_html=True
+            )
         
     st.divider()
 
-    # --- LIGNE 1 : POPULARITÉ ---
-    st.subheader("🔥 Top 5 des produits en vogue du moment (Popularité)")
-    pop_recs = popularity_model.head(5).index.tolist()
-    
-    col_pop = st.columns(5)
-    for i, pid in enumerate(pop_recs):
-        p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
-        with col_pop[i]:
-            # 🖼️ Lien magique Amazon pour récupérer la vraie photo via le ProductId
-            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
-            st.image(url_image)
-            st.info(f"**Top {i+1}**\n\n{p_name[:60]}...")
+   # --- 2. POPULARITÉ ---
+st.subheader("Top 5 Best Sellers in Beauty")
 
-   # --- LIGNE 2 : ITEM-BASED ---
-    st.subheader("🎯 Top 5 en fonction de vos achats précédents (Item-Based)")
-    item_recs = recommend_item_based(selected_user)
-    
-    col_item = st.columns(5)
-    for i, pid in enumerate(item_recs):
-        p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
-        with col_item[i]:
-            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
-            st.image(url_image)
-            st.success(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
-  
-   # --- LIGNE 3 : USER-BASED ---
-    st.subheader("💡 Vous pourriez aussi aimer... (User-Based)")
-    user_recs = recommend_user_based(selected_user)
-    
-    col_user = st.columns(5)
-    for i, pid in enumerate(user_recs):
-        p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
-        with col_user[i]:
-            url_image = f"https://images-na.ssl-images-amazon.com/images/P/{pid}.01.LZZZZZZZ.jpg"
-            st.image(url_image)
-            st.warning(f"**Recommandé {i+1}**\n\n{p_name[:60]}...")
+all_pop_recs = popularity_model.index.tolist()
+filtered_pop_recs = [pid for pid in all_pop_recs if pid not in st.session_state.disliked_products]
+current_pop_recs = filtered_pop_recs[:5]
+
+col_pop = st.columns(5)
+for i, pid in enumerate(current_pop_recs):
+    p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
+    img_b64 = get_image_for_product(pid)
+
+    with col_pop[i]:
+        st.markdown(f"""
+        <div class="product-card">
+            <img src="{img_b64}" class="product-img">
+            <p><strong>Best Seller</strong><br>{p_name[:50]}...</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        # Boutons Like / Dislike
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Like", key=f"like_pop_{pid}", use_container_width=True):
+                st.toast("Saved to your list!")
+        with col2:
+            if st.button("Dislike", key=f"dislike_pop_{pid}", use_container_width=True):
+                st.session_state.disliked_products.add(pid)
+                st.rerun()
+
+
+    # --- 3. ITEM-BASED ---
+if last_purchased_name:
+    contextual_header = f'Because of your purchases "{last_purchased_name[:30]}..."'
+else:
+    contextual_header = "Because of your purchases"
+
+st.subheader(contextual_header)
+
+all_item_recs = recommend_item_based(selected_user)
+filtered_item_recs = [pid for pid in all_item_recs if pid not in st.session_state.disliked_products]
+current_item_recs = filtered_item_recs[:5]
+
+col_item = st.columns(5)
+for i, pid in enumerate(current_item_recs):
+    p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
+    img_b64 = get_image_for_product(pid)
+
+    with col_item[i]:
+        st.markdown(f"""
+        <div class="product-card">
+            <img src="{img_b64}" class="product-img">
+            <p><strong>Similar Match</strong><br>{p_name[:50]}...</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Like", key=f"like_item_{pid}", use_container_width=True):
+                st.toast("Saved to your list!")
+        with col2:
+            if st.button("Dislike", key=f"dislike_item_{pid}", use_container_width=True):
+                st.session_state.disliked_products.add(pid)
+                st.rerun()
+
+   # --- 4. USER-BASED ---
+st.subheader("Customers also shopped for")
+
+all_user_recs = recommend_user_based(selected_user)
+filtered_user_recs = [pid for pid in all_user_recs if pid not in st.session_state.disliked_products]
+current_user_recs = filtered_user_recs[:5]
+
+col_user = st.columns(5)
+for i, pid in enumerate(current_user_recs):
+    p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
+    img_b64 = get_image_for_product(pid)
+
+    with col_user[i]:
+        st.markdown(f"""
+        <div class="product-card">
+            <img src="{img_b64}" class="product-img">
+            <p><strong>For You</strong><br>{p_name[:50]}...</p>
+        </div>
+        """, unsafe_allow_html=True)
+
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button("Like", key=f"like_user_{pid}", use_container_width=True):
+                st.toast("Saved to your list!")
+        with col2:
+            if st.button("Dislike", key=f"dislike_user_{pid}", use_container_width=True):
+                st.session_state.disliked_products.add(pid)
+                st.rerun()
+

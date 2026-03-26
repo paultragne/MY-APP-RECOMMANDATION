@@ -20,6 +20,9 @@ if "disliked_products" not in st.session_state:
     st.session_state.disliked_products = set()
 
 # --- CSS AMÉLIORÉ ---
+st.markdown("""
+<style>
+
 .stApp { background-color: #FFFFFF; color: #111111; }
 h1, h2, h3 { color: #111111 !important; }
 
@@ -37,7 +40,7 @@ h1, h2, h3 { color: #111111 !important; }
     border-top: 4px solid #FF9900 !important;
 
     /* --- NOUVEAU : même hauteur pour toutes les cartes --- */
-    height: 350px; /* Ajuste si tu veux : 330 / 350 / 380 */
+    height: 350px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -65,7 +68,7 @@ h1, h2, h3 { color: #111111 !important; }
     border: 1px solid #DDDDDD;
 }
 
-/* Barre de recherche (visuelle seulement) */
+/* Barre de recherche */
 .search-bar {
     display: flex;
     margin-bottom: 2rem;
@@ -108,7 +111,7 @@ h1, h2, h3 { color: #111111 !important; }
     transition: transform 0.15s ease, box-shadow 0.15s ease;
 }
 
-/* Bouton LIKE (Amazon Orange + cœur) */
+/* Bouton LIKE */
 .vote-btn-like {
     background-color: #FF9900;
     color: white;
@@ -123,7 +126,7 @@ h1, h2, h3 { color: #111111 !important; }
     box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
 }
 
-/* Bouton DISLIKE (Noir Amazon + X) */
+/* Bouton DISLIKE */
 .vote-btn-dislike {
     background-color: #333333;
     color: white;
@@ -137,6 +140,10 @@ h1, h2, h3 { color: #111111 !important; }
     transform: scale(1.05);
     box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
 }
+
+</style>
+""", unsafe_allow_html=True)
+
 
 # ==========================================
 # 📥 2. DATA LOADING

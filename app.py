@@ -19,24 +19,45 @@ st.set_page_config(
 if "disliked_products" not in st.session_state:
     st.session_state.disliked_products = set()
 
+# --- CSS AMÉLIORÉ ---
 st.markdown("""
 <style>
     .stApp { background-color: #FFFFFF; color: #111111; }
     h1, h2, h3 { color: #111111 !important; }
-    
+
     /* Sidebar Amazon */
     [data-testid="stSidebar"] { background-color: #232F3E; color: #FFFFFF; }
     [data-testid="stSidebar"] .stMarkdown { color: #FFFFFF; }
-    [data-testid="stSidebar"] [data-baseweb="select"] { color: #111111; }
 
-    /* Cartes produits */
-    .stInfo, .stSuccess, .stWarning {
+    /* Cartes produits améliorées */
+    .product-card {
         background-color: #F8F8F8;
         border: 1px solid #DDDDDD;
-        border-radius: 4px;
-        color: #111111 !important;
+        border-radius: 6px;
         padding: 1rem;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
         border-top: 4px solid #FF9900 !important;
+    }
+    .product-card:hover {
+        transform: scale(1.03);
+        box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+    }
+
+    /* Images */
+    .product-img {
+        width: 100%;
+        height: 180px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #DDDDDD;
+    }
+
+    .history-img {
+        width: 100%;
+        height: 120px;
+        object-fit: cover;
+        border-radius: 4px;
+        border: 1px solid #DDDDDD;
     }
 
     /* Boutons Amazon Orange */
@@ -46,10 +67,11 @@ st.markdown("""
         border-radius: 4px;
         border: none;
         width: 100%;
+        transition: background-color 0.2s ease;
     }
     .stButton>button:hover { background-color: #CC7A00; }
-    
-    /* Barre de recherche Amazon */
+
+    /* Barre de recherche (visuelle seulement) */
     .search-bar {
         display: flex;
         margin-bottom: 2rem;
@@ -124,11 +146,9 @@ popularity_model = data_recent.groupby("ProductId").agg(
 )
 popularity_model = popularity_model[popularity_model["n_rating"] >= 2].sort_values("avg_popularity", ascending=False)
 
-
 # ==========================================
 # 🧠 4. RECOMMENDATION ENGINES
 # ==========================================
-
 def recommend_item_based(user_id, top_n=5, k=30):
     user_ratings = rating_matrix_cf.loc[user_id]
     rated_items = user_ratings[user_ratings > 0]
@@ -149,11 +169,9 @@ def recommend_user_based(user_id, top_n=5, k=30):
     scores[user_rated > 0] = -np.inf
     return scores.sort_values(ascending=False).head(100).index.tolist()
 
-
 # ==========================================
 # 🖥️ 5. VISUAL INTERFACE (UI)
 # ==========================================
-
 chemin_dossier_images = "image_produits"
 banque_images_locales = []
 
@@ -174,15 +192,15 @@ def get_base64_image(image_path):
     except:
         return None
 
-# Mappe intelligemment un ProductId à une image fixe locale parmi vos 55 images !
 def get_image_for_product(product_id):
     if not banque_images_locales:
         return None
     index_image = hash(product_id) % len(banque_images_locales)
     return get_base64_image(banque_images_locales[index_image])
 
-style_html_card = 'width:100%; height:180px; object-fit:cover; border-radius:4px; border: 1px solid #DDDDDD;'
-style_html_history = 'width:100%; height:120px; object-fit:cover; border-radius:4px; border: 1px solid #DDDDDD;'
+# Styles HTML
+style_html_card = 'product-img'
+style_html_history = 'history-img'
 
 st.sidebar.header("👤 Your Amazon Account")
 users_list = data_clean["UserId"].unique()
@@ -206,7 +224,7 @@ if selected_user:
         with cols_purchased[i]:
             img_b64 = get_image_for_product(row['ProductId'])
             if img_b64:
-                st.markdown(f'<img src="{img_b64}" style="{style_html_history}">', unsafe_allow_html=True)
+                st.markdown(f'<img src="{img_b64}" class="history-img">', unsafe_allow_html=True)
             st.markdown(f'<p style="color:#111111; font-size: 0.85rem; margin-top:5px;"><strong>Purchased Item</strong><br>{p_name[:50]}...</p>', unsafe_allow_html=True)
         
     st.divider()
@@ -223,9 +241,10 @@ if selected_user:
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_pop[i]:
             img_b64 = get_image_for_product(pid)
+            st.markdown('<div class="product-card">', unsafe_allow_html=True)
             if img_b64:
-                st.markdown(f'<img src="{img_b64}" style="{style_html_card}">', unsafe_allow_html=True)
-            st.info(f"**Best Seller**\n\n{p_name[:50]}...")
+                st.markdown(f'<img src="{img_b64}" class="product-img">', unsafe_allow_html=True)
+            st.markdown(f"<p><strong>Best Seller</strong><br>{p_name[:50]}...</p>", unsafe_allow_html=True)
             
             vote_col1, vote_col2 = st.columns(2)
             with vote_col1:
@@ -235,6 +254,7 @@ if selected_user:
                 if st.button(f"👎", key=f"dislike_pop_{pid}"):
                     st.session_state.disliked_products.add(pid)
                     st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -255,9 +275,10 @@ if selected_user:
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_item[i]:
             img_b64 = get_image_for_product(pid)
+            st.markdown('<div class="product-card">', unsafe_allow_html=True)
             if img_b64:
-                st.markdown(f'<img src="{img_b64}" style="{style_html_card}">', unsafe_allow_html=True)
-            st.success(f"**Similar Match**\n\n{p_name[:50]}...")
+                st.markdown(f'<img src="{img_b64}" class="product-img">', unsafe_allow_html=True)
+            st.markdown(f"<p><strong>Similar Match</strong><br>{p_name[:50]}...</p>", unsafe_allow_html=True)
             
             vote_col1, vote_col2 = st.columns(2)
             with vote_col1:
@@ -267,6 +288,7 @@ if selected_user:
                 if st.button(f"👎", key=f"dislike_item_{pid}"):
                     st.session_state.disliked_products.add(pid)
                     st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -282,9 +304,10 @@ if selected_user:
         p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
         with col_user[i]:
             img_b64 = get_image_for_product(pid)
+            st.markdown('<div class="product-card">', unsafe_allow_html=True)
             if img_b64:
-                st.markdown(f'<img src="{img_b64}" style="{style_html_card}">', unsafe_allow_html=True)
-            st.warning(f"**For You**\n\n{p_name[:50]}...")
+                st.markdown(f'<img src="{img_b64}" class="product-img">', unsafe_allow_html=True)
+            st.markdown(f"<p><strong>For You</strong><br>{p_name[:50]}...</p>", unsafe_allow_html=True)
             
             vote_col1, vote_col2 = st.columns(2)
             with vote_col1:
@@ -294,3 +317,4 @@ if selected_user:
                 if st.button(f"👎", key=f"dislike_user_{pid}"):
                     st.session_state.disliked_products.add(pid)
                     st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)

@@ -20,141 +20,123 @@ if "disliked_products" not in st.session_state:
     st.session_state.disliked_products = set()
 
 # --- CSS AMÉLIORÉ ---
-st.markdown("""
-<style>
-    .stApp { background-color: #FFFFFF; color: #111111; }
-    h1, h2, h3 { color: #111111 !important; }
+.stApp { background-color: #FFFFFF; color: #111111; }
+h1, h2, h3 { color: #111111 !important; }
 
-    /* Sidebar Amazon */
-    [data-testid="stSidebar"] { background-color: #232F3E; color: #FFFFFF; }
-    [data-testid="stSidebar"] .stMarkdown { color: #FFFFFF; }
+/* Sidebar Amazon */
+[data-testid="stSidebar"] { background-color: #232F3E; color: #FFFFFF; }
+[data-testid="stSidebar"] .stMarkdown { color: #FFFFFF; }
 
-    /* Cartes produits améliorées */
-    .product-card {
-        background-color: #F8F8F8;
-        border: 1px solid #DDDDDD;
-        border-radius: 6px;
-        padding: 1rem;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-        border-top: 4px solid #FF9900 !important;
-    }
-    .product-card:hover {
-        transform: scale(1.03);
-        box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
-    }
+/* Cartes produits améliorées */
+.product-card {
+    background-color: #F8F8F8;
+    border: 1px solid #DDDDDD;
+    border-radius: 6px;
+    padding: 1rem;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+    border-top: 4px solid #FF9900 !important;
 
-    /* Images */
-    .product-img {
-        width: 100%;
-        height: 180px;
-        object-fit: cover;
-        border-radius: 4px;
-        border: 1px solid #DDDDDD;
-    }
+    /* --- NOUVEAU : même hauteur pour toutes les cartes --- */
+    height: 350px; /* Ajuste si tu veux : 330 / 350 / 380 */
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+}
 
-    .history-img {
-        width: 100%;
-        height: 120px;
-        object-fit: cover;
-        border-radius: 4px;
-        border: 1px solid #DDDDDD;
-    }
+.product-card:hover {
+    transform: scale(1.03);
+    box-shadow: 0px 4px 12px rgba(0,0,0,0.15);
+}
 
-    /* Boutons Amazon Orange */
-    .stButton>button {
-        background-color: #FF9900;
-        color: #FFFFFF;
-        border-radius: 4px;
-        border: none;
-        width: 100%;
-        transition: background-color 0.2s ease;
-    }
-    .stButton>button:hover { background-color: #CC7A00; }
+/* Images */
+.product-img {
+    width: 100%;
+    height: 180px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #DDDDDD;
+}
 
-    /* Barre de recherche (visuelle seulement) */
-    .search-bar {
-        display: flex;
-        margin-bottom: 2rem;
-    }
-    .search-input {
-        width: 80%;
-        padding: 10px;
-        border: 1px solid #DDDDDD;
-        border-right: none;
-        border-radius: 4px 0 0 4px;
-    }
-    .search-button {
-        width: 20%;
-        padding: 10px;
-        background-color: #FF9900;
-        color: white;
-        text-align: center;
-        font-weight: bold;
-        border-radius: 0 4px 4px 0;
-        cursor: pointer;
-    }
+.history-img {
+    width: 100%;
+    height: 120px;
+    object-fit: cover;
+    border-radius: 4px;
+    border: 1px solid #DDDDDD;
+}
 
-    /* --- BOUTONS LIKE / DISLIKE PREMIUM --- */
+/* Barre de recherche (visuelle seulement) */
+.search-bar {
+    display: flex;
+    margin-bottom: 2rem;
+}
+.search-input {
+    width: 80%;
+    padding: 10px;
+    border: 1px solid #DDDDDD;
+    border-right: none;
+    border-radius: 4px 0 0 4px;
+}
+.search-button {
+    width: 20%;
+    padding: 10px;
+    background-color: #FF9900;
+    color: white;
+    text-align: center;
+    font-weight: bold;
+    border-radius: 0 4px 4px 0;
+    cursor: pointer;
+}
 
-    .vote-container {
-        display: flex;
-        justify-content: space-between;
-        margin-top: 10px;
-    }
+/* --- BOUTONS LIKE / DISLIKE PREMIUM --- */
 
-    .vote-btn {
-        width: 48%;
-        padding: 8px 0;
-        border-radius: 6px;
-        text-align: center;
-        font-weight: bold;
-        cursor: pointer;
-        border: none;
-        font-size: 15px;
-        transition: transform 0.15s ease, box-shadow 0.15s ease;
-    }
+.vote-container {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 10px;
+}
 
-    .vote-btn-like {
-        background-color: #FF9900;
-        color: white;
-    }
-    .vote-btn-like::before {
-        content: "❤️ ";
-        font-size: 16px;
-    }
-    .vote-btn-like:hover {
-        background-color: #CC7A00;
-        transform: scale(1.05);
-        box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
-    }
+.vote-btn {
+    width: 48%;
+    padding: 8px 0;
+    border-radius: 6px;
+    text-align: center;
+    font-weight: bold;
+    cursor: pointer;
+    border: none;
+    font-size: 15px;
+    transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
 
-    .vote-btn-dislike {
-        background-color: #333333;
-        color: white;
-    }
-    .vote-btn-dislike::before {
-        content: "❌ ";
-        font-size: 16px;
-    }
-    .vote-btn-dislike:hover {
-        background-color: #111111;
-        transform: scale(1.05);
-        box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
-    }
+/* Bouton LIKE (Amazon Orange + cœur) */
+.vote-btn-like {
+    background-color: #FF9900;
+    color: white;
+}
+.vote-btn-like::before {
+    content: "❤️ ";
+    font-size: 16px;
+}
+.vote-btn-like:hover {
+    background-color: #CC7A00;
+    transform: scale(1.05);
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+}
 
-</style>
-""", unsafe_allow_html=True)
-
-st.image("https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg", width=120)
-
-st.markdown("""
-<div class="search-bar">
-    <input type="text" class="search-input" placeholder="Search Amazon Beauty...">
-    <div class="search-button">🔍 Search</div>
-</div>
-""", unsafe_allow_html=True)
-
-st.markdown("### Welcome back! Explore your personalized recommendations below.")
+/* Bouton DISLIKE (Noir Amazon + X) */
+.vote-btn-dislike {
+    background-color: #333333;
+    color: white;
+}
+.vote-btn-dislike::before {
+    content: "❌ ";
+    font-size: 16px;
+}
+.vote-btn-dislike:hover {
+    background-color: #111111;
+    transform: scale(1.05);
+    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+}
 
 # ==========================================
 # 📥 2. DATA LOADING

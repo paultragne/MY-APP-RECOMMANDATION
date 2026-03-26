@@ -93,6 +93,55 @@ st.markdown("""
         border-radius: 0 4px 4px 0;
         cursor: pointer;
     }
+
+    /* --- BOUTONS LIKE / DISLIKE PREMIUM --- */
+
+    .vote-container {
+        display: flex;
+        justify-content: space-between;
+        margin-top: 10px;
+    }
+
+    .vote-btn {
+        width: 48%;
+        padding: 8px 0;
+        border-radius: 6px;
+        text-align: center;
+        font-weight: bold;
+        cursor: pointer;
+        border: none;
+        font-size: 15px;
+        transition: transform 0.15s ease, box-shadow 0.15s ease;
+    }
+
+    .vote-btn-like {
+        background-color: #FF9900;
+        color: white;
+    }
+    .vote-btn-like::before {
+        content: "❤️ ";
+        font-size: 16px;
+    }
+    .vote-btn-like:hover {
+        background-color: #CC7A00;
+        transform: scale(1.05);
+        box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    }
+
+    .vote-btn-dislike {
+        background-color: #333333;
+        color: white;
+    }
+    .vote-btn-dislike::before {
+        content: "❌ ";
+        font-size: 16px;
+    }
+    .vote-btn-dislike:hover {
+        background-color: #111111;
+        transform: scale(1.05);
+        box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
+    }
+
 </style>
 """, unsafe_allow_html=True)
 
@@ -206,6 +255,7 @@ st.sidebar.header("👤 Your Amazon Account")
 users_list = data_clean["UserId"].unique()
 selected_user = st.sidebar.selectbox("Choose a User Profile:", users_list)
 
+
 if selected_user:
     
     # 🛒 1. HISTORIQUE D'ACHATS
@@ -252,14 +302,20 @@ if selected_user:
             </div>
             """, unsafe_allow_html=True)
 
-            vote_col1, vote_col2 = st.columns(2)
-            with vote_col1:
-                if st.button(f"👍", key=f"like_pop_{pid}"):
+            # --- Boutons Like / Dislike premium ---
+            st.markdown('<div class="vote-container">', unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("Like", key=f"like_pop_{pid}", use_container_width=True):
                     st.toast("Saved to your list!")
-            with vote_col2:
-                if st.button(f"👎", key=f"dislike_pop_{pid}"):
+
+            with col2:
+                if st.button("Dislike", key=f"dislike_pop_{pid}", use_container_width=True):
                     st.session_state.disliked_products.add(pid)
                     st.rerun()
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -288,14 +344,20 @@ if selected_user:
             </div>
             """, unsafe_allow_html=True)
 
-            vote_col1, vote_col2 = st.columns(2)
-            with vote_col1:
-                if st.button(f"👍", key=f"like_item_{pid}"):
+            # --- Boutons Like / Dislike premium ---
+            st.markdown('<div class="vote-container">', unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("Like", key=f"like_item_{pid}", use_container_width=True):
                     st.toast("Saved to your list!")
-            with vote_col2:
-                if st.button(f"👎", key=f"dislike_item_{pid}"):
+
+            with col2:
+                if st.button("Dislike", key=f"dislike_item_{pid}", use_container_width=True):
                     st.session_state.disliked_products.add(pid)
                     st.rerun()
+
+            st.markdown('</div>', unsafe_allow_html=True)
 
     st.divider()
 
@@ -319,11 +381,18 @@ if selected_user:
             </div>
             """, unsafe_allow_html=True)
 
-            vote_col1, vote_col2 = st.columns(2)
-            with vote_col1:
-                if st.button(f"👍", key=f"like_user_{pid}"):
+            # --- Boutons Like / Dislike premium ---
+            st.markdown('<div class="vote-container">', unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+
+            with col1:
+                if st.button("Like", key=f"like_user_{pid}", use_container_width=True):
                     st.toast("Saved to your list!")
-            with vote_col2:
-                if st.button(f"👎", key=f"dislike_user_{pid}"):
+
+            with col2:
+                if st.button("Dislike", key=f"dislike_user_{pid}", use_container_width=True):
                     st.session_state.disliked_products.add(pid)
                     st.rerun()
+
+            st.markdown('</div>', unsafe_allow_html=True)
+# (Fin du if selected_user:)

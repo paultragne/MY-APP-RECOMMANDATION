@@ -39,7 +39,6 @@ h1, h2, h3 { color: #111111 !important; }
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     border-top: 4px solid #FF9900 !important;
 
-    /* même hauteur pour toutes les cartes */
     height: 350px;
     display: flex;
     flex-direction: column;
@@ -91,59 +90,35 @@ h1, h2, h3 { color: #111111 !important; }
     cursor: pointer;
 }
 
-/* --- BOUTONS LIKE / DISLIKE PREMIUM --- */
-
+/* Boutons Like / Dislike */
 .vote-container {
     display: flex;
     justify-content: space-between;
     margin-top: 10px;
 }
 
-.vote-btn {
-    width: 48%;
-    padding: 8px 0;
-    border-radius: 6px;
-    text-align: center;
-    font-weight: bold;
-    cursor: pointer;
-    border: none;
-    font-size: 15px;
-    transition: transform 0.15s ease, box-shadow 0.15s ease;
-}
-
-/* Bouton LIKE */
 .vote-btn-like {
     background-color: #FF9900;
     color: white;
+    width: 48%;
+    padding: 8px 0;
+    border-radius: 6px;
+    font-weight: bold;
 }
-.vote-btn-like::before {
-    content: "❤️ ";
-    font-size: 16px;
-}
-.vote-btn-like:hover {
-    background-color: #CC7A00;
-    transform: scale(1.05);
-    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
-}
+.vote-btn-like::before { content: "❤️ "; }
 
-/* Bouton DISLIKE */
 .vote-btn-dislike {
     background-color: #333333;
     color: white;
+    width: 48%;
+    padding: 8px 0;
+    border-radius: 6px;
+    font-weight: bold;
 }
-.vote-btn-dislike::before {
-    content: "❌ ";
-    font-size: 16px;
-}
-.vote-btn-dislike:hover {
-    background-color: #111111;
-    transform: scale(1.05);
-    box-shadow: 0px 3px 8px rgba(0,0,0,0.2);
-}
+.vote-btn-dislike::before { content: "❌ "; }
 
 </style>
 """, unsafe_allow_html=True)
-
 
 # ==========================================
 # 📥 2. DATA LOADING

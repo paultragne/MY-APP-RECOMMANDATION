@@ -39,6 +39,7 @@ h1, h2, h3 { color: #111111 !important; }
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     border-top: 4px solid #FF9900 !important;
 
+    /* même hauteur pour toutes les cartes */
     height: 350px;
     display: flex;
     flex-direction: column;
@@ -67,7 +68,7 @@ h1, h2, h3 { color: #111111 !important; }
     border: 1px solid #DDDDDD;
 }
 
-/* Barre de recherche */
+/* Barre de recherche (visuelle seulement) */
 .search-bar {
     display: flex;
     margin-bottom: 2rem;
@@ -90,35 +91,32 @@ h1, h2, h3 { color: #111111 !important; }
     cursor: pointer;
 }
 
-/* Boutons Like / Dislike */
-.vote-container {
-    display: flex;
-    justify-content: space-between;
-    margin-top: 10px;
-}
-
-.vote-btn-like {
+/* Boutons Streamlit par défaut en orange */
+.stButton > button {
     background-color: #FF9900;
-    color: white;
-    width: 48%;
-    padding: 8px 0;
-    border-radius: 6px;
-    font-weight: bold;
+    color: #FFFFFF;
+    border-radius: 4px;
+    border: none;
+    width: 100%;
+    transition: background-color 0.2s ease;
 }
-.vote-btn-like::before { content: "❤️ "; }
-
-.vote-btn-dislike {
-    background-color: #333333;
-    color: white;
-    width: 48%;
-    padding: 8px 0;
-    border-radius: 6px;
-    font-weight: bold;
+.stButton > button:hover {
+    background-color: #CC7A00;
 }
-.vote-btn-dislike::before { content: "❌ "; }
 
 </style>
 """, unsafe_allow_html=True)
+
+st.image("https://upload.wikimedia.org/wikipedia/commons/a/a9/Amazon_logo.svg", width=120)
+
+st.markdown("""
+<div class="search-bar">
+    <input type="text" class="search-input" placeholder="Search Amazon Beauty...">
+    <div class="search-button">🔍 Search</div>
+</div>
+""", unsafe_allow_html=True)
+
+st.markdown("### Welcome back! Explore your personalized recommendations below.")
 
 # ==========================================
 # 📥 2. DATA LOADING
@@ -128,6 +126,7 @@ def load_data():
     df = pd.read_excel("Group3_Cleaned.xlsx", engine="openpyxl") 
     df = df.head(2500)
     return df
+
 
 try:
     data_clean = load_data()

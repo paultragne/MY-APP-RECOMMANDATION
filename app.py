@@ -39,7 +39,7 @@ h1, h2, h3 { color: #111111 !important; }
     transition: transform 0.15s ease, box-shadow 0.15s ease;
     border-top: 4px solid #FF9900 !important;
 
-    /* --- même hauteur pour toutes les cartes --- */
+    /* même hauteur pour toutes les cartes */
     height: 350px;
     display: flex;
     flex-direction: column;
@@ -143,6 +143,7 @@ h1, h2, h3 { color: #111111 !important; }
 
 </style>
 """, unsafe_allow_html=True)
+
 
 # ==========================================
 # 📥 2. DATA LOADING

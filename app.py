@@ -3,7 +3,6 @@ import pandas as pd
 import numpy as np
 import os
 import base64
-import random
 from sklearn.metrics.pairwise import cosine_similarity
 
 # ==========================================
@@ -123,8 +122,9 @@ st.markdown("### Welcome back! Explore your personalized recommendations below."
 # ==========================================
 @st.cache_data
 def load_data():
+    # Remplacez par le nom exact de votre fichier propre
     df = pd.read_excel("Group3_Cleaned.xlsx", engine="openpyxl") 
-    df = df.head(2500)
+    df = df.head(2500) # Limite pour fluidité
     return df
 
 
@@ -170,7 +170,7 @@ def recommend_item_based(user_id, top_n=5, k=30):
         top_items = sims.sort_values(ascending=False).head(k)
         scores[top_items.index] += top_items * rating
     scores[rated_items.index] = -np.inf
-    return scores.sort_values(ascending=False).head(100).index.tolist()
+    return scores.sort_values(ascending=False).head(100) # On garde les scores pour l'hybridation
 
 def recommend_user_based(user_id, top_n=5, k=30):
     sim_scores = user_similarity[user_id].drop(user_id)
@@ -179,7 +179,46 @@ def recommend_user_based(user_id, top_n=5, k=30):
     scores = weighted_ratings / top_users.sum()
     user_rated = rating_matrix_cf.loc[user_id]
     scores[user_rated > 0] = -np.inf
-    return scores.sort_values(ascending=False).head(100).index.tolist()
+    return scores.sort_values(ascending=False).head(100) # On garde les scores pour l'hybridation
+
+def recommend_hybrid(user_id, top_n=5):
+    """
+    Modèle Hybride : 40% Popularité, 40% Item-Based, 20% User-Based.
+    Exclut les produits déjà achetés et les 'dislikés'.
+    """
+    # 1. Récupération des scores de base (Top 100 de chaque pour brasser large)
+    item_scores = recommend_item_based(user_id)
+    user_scores = recommend_user_based(user_id)
+    
+    # 2. Normalisation Min-Max des scores pour équilibrer l'addition
+    def normalize(series):
+        valid_series = series[series != -np.inf]
+        if valid_series.empty or valid_series.max() == valid_series.min():
+            return series
+        return (series - valid_series.min()) / (valid_series.max() - valid_series.min())
+
+    norm_item = normalize(item_scores)
+    norm_user = normalize(user_scores)
+    
+    # Normalisation du modèle de popularité
+    pop_scores = popularity_model["avg_popularity"].head(100)
+    norm_pop = (pop_scores - pop_scores.min()) / (pop_scores.max() - pop_scores.min()) if pop_scores.max() != pop_scores.min() else pop_scores
+
+    # 3. Calcul du score agrégé
+    combined_scores = pd.Series(0.0, index=rating_matrix_cf.columns)
+    
+    # On ajoute les poids
+    combined_scores[norm_item.index] += norm_item * 0.40
+    combined_scores[norm_user.index] += norm_user * 0.20
+    combined_scores[norm_pop.index] += norm_pop * 0.40
+
+    # 4. Masquer les produits déjà achetés (ceux notés à -np.inf dans item ou user scores)
+    bought_mask = (item_scores == -np.inf) | (user_scores == -np.inf)
+    bought_items = bought_mask[bought_mask].index
+    combined_scores[bought_items] = -np.inf
+
+    return combined_scores.sort_values(ascending=False).head(100).index.tolist()
+
 
 # ==========================================
 # 🖥️ 5. VISUAL INTERFACE (UI)
@@ -210,9 +249,6 @@ def get_image_for_product(product_id):
     index_image = hash(product_id) % len(banque_images_locales)
     return get_base64_image(banque_images_locales[index_image])
 
-# Styles HTML
-style_html_card = 'product-img'
-style_html_history = 'history-img'
 
 st.sidebar.header("👤 Your Amazon Account")
 users_list = data_clean["UserId"].unique()
@@ -245,97 +281,130 @@ if selected_user:
         
     st.divider()
 
-   # --- 2. POPULARITÉ ---
-st.subheader("Top 5 Best Sellers in Beauty")
+    # --- 2. POPULARITÉ ---
+    st.subheader("Top 5 Best Sellers in Beauty")
 
-all_pop_recs = popularity_model.index.tolist()
-filtered_pop_recs = [pid for pid in all_pop_recs if pid not in st.session_state.disliked_products]
-current_pop_recs = filtered_pop_recs[:5]
+    all_pop_recs = popularity_model.index.tolist()
+    filtered_pop_recs = [pid for pid in all_pop_recs if pid not in st.session_state.disliked_products]
+    current_pop_recs = filtered_pop_recs[:5]
 
-col_pop = st.columns(5)
-for i, pid in enumerate(current_pop_recs):
-    p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
-    img_b64 = get_image_for_product(pid)
+    col_pop = st.columns(5)
+    for i, pid in enumerate(current_pop_recs):
+        p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
+        img_b64 = get_image_for_product(pid)
 
-    with col_pop[i]:
-        st.markdown(f"""
-        <div class="product-card">
-            <img src="{img_b64}" class="product-img">
-            <p><strong>Best Seller</strong><br>{p_name[:50]}...</p>
-        </div>
-        """, unsafe_allow_html=True)
+        with col_pop[i]:
+            st.markdown(f"""
+            <div class="product-card">
+                <img src="{img_b64}" class="product-img">
+                <p><strong>Best Seller</strong><br>{p_name[:50]}...</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-        # Boutons Like / Dislike
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Like", key=f"like_pop_{pid}", use_container_width=True):
-                st.toast("Saved to your list!")
-        with col2:
-            if st.button("Dislike", key=f"dislike_pop_{pid}", use_container_width=True):
-                st.session_state.disliked_products.add(pid)
-                st.rerun()
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Like", key=f"like_pop_{pid}", use_container_width=True):
+                    st.toast("Saved to your list!")
+            with col2:
+                if st.button("Dislike", key=f"dislike_pop_{pid}", use_container_width=True):
+                    st.session_state.disliked_products.add(pid)
+                    st.rerun()
 
+    st.divider()
 
-    # --- 3. ITEM-BASED ---
-if last_purchased_name:
-    contextual_header = f'Because of your purchases "{last_purchased_name[:30]}..."'
-else:
-    contextual_header = "Because of your purchases"
+    # --- 3. HYBRIDE (« POUR VOUS ») ---
+    st.subheader("🌟 For You (Personalized Mix)")
 
-st.subheader(contextual_header)
+    all_hybrid_recs = recommend_hybrid(selected_user)
+    filtered_hybrid_recs = [pid for pid in all_hybrid_recs if pid not in st.session_state.disliked_products]
+    current_hybrid_recs = filtered_hybrid_recs[:5]
 
-all_item_recs = recommend_item_based(selected_user)
-filtered_item_recs = [pid for pid in all_item_recs if pid not in st.session_state.disliked_products]
-current_item_recs = filtered_item_recs[:5]
+    col_hyb = st.columns(5)
+    for i, pid in enumerate(current_hybrid_recs):
+        p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
+        img_b64 = get_image_for_product(pid)
 
-col_item = st.columns(5)
-for i, pid in enumerate(current_item_recs):
-    p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
-    img_b64 = get_image_for_product(pid)
+        with col_hyb[i]:
+            st.markdown(f"""
+            <div class="product-card">
+                <img src="{img_b64}" class="product-img">
+                <p><strong>Recommended For You</strong><br>{p_name[:50]}...</p>
+            </div>
+            """, unsafe_allow_html=True)
 
-    with col_item[i]:
-        st.markdown(f"""
-        <div class="product-card">
-            <img src="{img_b64}" class="product-img">
-            <p><strong>Similar Match</strong><br>{p_name[:50]}...</p>
-        </div>
-        """, unsafe_allow_html=True)
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Like", key=f"like_hyb_{pid}", use_container_width=True):
+                    st.toast("Saved to your list!")
+            with col2:
+                if st.button("Dislike", key=f"dislike_hyb_{pid}", use_container_width=True):
+                    st.session_state.disliked_products.add(pid)
+                    st.rerun()
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Like", key=f"like_item_{pid}", use_container_width=True):
-                st.toast("Saved to your list!")
-        with col2:
-            if st.button("Dislike", key=f"dislike_item_{pid}", use_container_width=True):
-                st.session_state.disliked_products.add(pid)
-                st.rerun()
+    st.divider()
 
-   # --- 4. USER-BASED ---
-st.subheader("Customers also shopped for")
+    # --- 4. ITEM-BASED ---
+    if last_purchased_name:
+        contextual_header = f'Because of your purchases "{last_purchased_name[:30]}..."'
+    else:
+        contextual_header = "Because of your purchases"
 
-all_user_recs = recommend_user_based(selected_user)
-filtered_user_recs = [pid for pid in all_user_recs if pid not in st.session_state.disliked_products]
-current_user_recs = filtered_user_recs[:5]
+    st.subheader(contextual_header)
 
-col_user = st.columns(5)
-for i, pid in enumerate(current_user_recs):
-    p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
-    img_b64 = get_image_for_product(pid)
+    all_item_recs = recommend_item_based(selected_user).index.tolist()
+    filtered_item_recs = [pid for pid in all_item_recs if pid not in st.session_state.disliked_products]
+    current_item_recs = filtered_item_recs[:5]
 
-    with col_user[i]:
-        st.markdown(f"""
-        <div class="product-card">
-            <img src="{img_b64}" class="product-img">
-            <p><strong>For You</strong><br>{p_name[:50]}...</p>
-        </div>
-        """, unsafe_allow_html=True)
+    col_item = st.columns(5)
+    for i, pid in enumerate(current_item_recs):
+        p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
+        img_b64 = get_image_for_product(pid)
 
-        col1, col2 = st.columns(2)
-        with col1:
-            if st.button("Like", key=f"like_user_{pid}", use_container_width=True):
-                st.toast("Saved to your list!")
-        with col2:
-            if st.button("Dislike", key=f"dislike_user_{pid}", use_container_width=True):
-                st.session_state.disliked_products.add(pid)
-                st.rerun()
+        with col_item[i]:
+            st.markdown(f"""
+            <div class="product-card">
+                <img src="{img_b64}" class="product-img">
+                <p><strong>Similar Match</strong><br>{p_name[:50]}...</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Like", key=f"like_item_{pid}", use_container_width=True):
+                    st.toast("Saved to your list!")
+            with col2:
+                if st.button("Dislike", key=f"dislike_item_{pid}", use_container_width=True):
+                    st.session_state.disliked_products.add(pid)
+                    st.rerun()
+
+    st.divider()
+
+    # --- 5. USER-BASED ---
+    st.subheader("Customers also shopped for")
+
+    all_user_recs = recommend_user_based(selected_user).index.tolist()
+    filtered_user_recs = [pid for pid in all_user_recs if pid not in st.session_state.disliked_products]
+    current_user_recs = filtered_user_recs[:5]
+
+    col_user = st.columns(5)
+    for i, pid in enumerate(current_user_recs):
+        p_name = data_clean[data_clean["ProductId"] == pid]["product_name"].iloc[0]
+        img_b64 = get_image_for_product(pid)
+
+        with col_user[i]:
+            st.markdown(f"""
+            <div class="product-card">
+                <img src="{img_b64}" class="product-img">
+                <p><strong>People Like You Bought</strong><br>{p_name[:50]}...</p>
+            </div>
+            """, unsafe_allow_html=True)
+
+            col1, col2 = st.columns(2)
+            with col1:
+                if st.button("Like", key=f"like_user_{pid}", use_container_width=True):
+                    st.toast("Saved to your list!")
+            with col2:
+                if st.button("Dislike", key=f"dislike_user_{pid}", use_container_width=True):
+                    st.session_state.disliked_products.add(pid)
+                    st.rerun()
 

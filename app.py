@@ -273,7 +273,7 @@ if selected_user:
 
 
     # --- 1. HYBRIDE (« POUR VOUS ») --- EN PREMIERE POSITION
-    st.subheader("🌟 For You (Personalized Mix)")
+    st.subheader("For You (Personalized Mix)")
 
     all_hybrid_recs = recommend_hybrid(selected_user)
     filtered_hybrid_recs = [pid for pid in all_hybrid_recs if pid not in st.session_state.disliked_products]

@@ -163,7 +163,8 @@ popularity_model = popularity_model[popularity_model["n_rating"] >= 2].sort_valu
 def recommend_item_based(user_id, top_n=5, k=30):
     user_ratings = rating_matrix_cf.loc[user_id]
     rated_items = user_ratings[user_ratings > 0]
-    scores = pd.Series(0, index=rating_matrix_cf.columns)
+    scores = pd.Series(0, index=rating_matrix_cf.columns, dtype=float)
+
     for item, rating in rated_items.items():
         sims = item_similarity[item].drop(item)
         top_items = sims.sort_values(ascending=False).head(k)
